@@ -1,0 +1,1096 @@
+<!--
+  マーケ計算ツール v1.0
+  Copyright (C) 2026 Yusuke Kamijima. All rights reserved.
+  本ファイルの無断複製・再配布を禁じます。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>マーケ計算ツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#fafaf8; --surface:#fff; --ink:#111; --ink-2:#3a3a3a;
+  --muted:#6b6b6b; --faint:#9a9a9a; --line:#e8e6e1; --line-2:#d9d6cf;
+  --accent:#2a7fa5; --accent-soft:#edf5f9; --accent-ink:#1a5570;
+  --warn:#c07020; --good:#2a7a50;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --sans:'Inter','Noto Sans JP',system-ui,sans-serif;
+  --cat-ads:210,80,60;
+  --cat-site:40,130,200;
+  --cat-ltv:50,155,100;
+  --cat-goal:130,80,200;
+}
+body[data-theme="editorial"] {
+  --bg:#f6f2ea; --surface:#fff; --ink:#1a1612; --line:#e5ded0; --line-2:#cfc6b3;
+  --accent:#8b5e2a; --accent-soft:#f5ede0; --accent-ink:#5a3a10;
+  font-family:'Noto Sans JP','Inter',sans-serif;
+}
+body[data-theme="terminal"] {
+  --bg:#0e0f10; --surface:#141617; --ink:#ececec; --ink-2:#c9c9c9;
+  --muted:#8a8a8a; --faint:#5a5a5a; --line:#24272a; --line-2:#35393d;
+  --accent:#4ecb8a; --accent-soft:#1a2e25; --accent-ink:#7de8b0;
+}
+/* Pattern D: Terminal UI + Minimal colors (no variable overrides — uses :root defaults) */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;letter-spacing:.005em;min-height:100vh}
+
+/* ---- Header ---- */
+.mk-top{position:sticky;top:0;z-index:10;background:rgba(250,250,248,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+body[data-theme="terminal"] .mk-top{background:rgba(14,15,16,.92)}
+body[data-theme="editorial"] .mk-top{background:rgba(246,242,234,.92)}
+.mk-top-inner{max-width:1440px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.mk-brand{display:flex;align-items:center;gap:10px}
+.mk-brand-icon{width:32px;height:32px;border-radius:7px;background:var(--accent-soft);color:var(--accent-ink);display:grid;place-items:center;flex-shrink:0}
+.mk-brand-icon svg{display:block}
+.mk-brand-name{font-weight:600;font-size:15px}
+.mk-brand-sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:2px}
+.mk-themebar{display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.mk-theme-btn{appearance:none;border:0;background:transparent;color:var(--muted);font:500 11.5px/1 var(--mono);padding:7px 11px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.mk-theme-btn:hover{color:var(--ink)}
+.mk-theme-btn.is-active{background:var(--ink);color:var(--bg)}
+
+/* ---- Tabs ---- */
+.mk-tabs{border-top:1px solid var(--line)}
+.mk-tabs-inner{max-width:1440px;margin:0 auto;padding:0 28px;display:flex;gap:4px;overflow-x:auto}
+.mk-tab{appearance:none;border:0;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 18px 7px;border-bottom:2px solid transparent;text-align:left}
+.mk-tab-ja{font-size:13px;font-weight:600;color:var(--ink-2);letter-spacing:.02em;display:flex;align-items:baseline;gap:4px}
+.mk-tab-count{font-size:9px;font-family:var(--mono);color:var(--faint);font-weight:400}
+.mk-tab-en{display:none}
+/* 非選択タブ: 超薄い背景 */
+.mk-tab[data-cat="ads"] {background:rgba(var(--cat-ads),.04)}
+.mk-tab[data-cat="site"]{background:rgba(var(--cat-site),.04)}
+.mk-tab[data-cat="ltv"] {background:rgba(var(--cat-ltv),.04)}
+.mk-tab[data-cat="goal"]{background:rgba(var(--cat-goal),.04)}
+/* 選択中タブ: カテゴリカラーのボーダー + 少し濃い背景 */
+.mk-tab[data-cat="ads"].is-active {border-bottom-color:rgb(var(--cat-ads));background:rgba(var(--cat-ads),.08)}
+.mk-tab[data-cat="site"].is-active{border-bottom-color:rgb(var(--cat-site));background:rgba(var(--cat-site),.08)}
+.mk-tab[data-cat="ltv"].is-active {border-bottom-color:rgb(var(--cat-ltv));background:rgba(var(--cat-ltv),.08)}
+.mk-tab[data-cat="goal"].is-active{border-bottom-color:rgb(var(--cat-goal));background:rgba(var(--cat-goal),.08)}
+.mk-tab.is-active .mk-tab-ja{color:var(--ink)}
+.mk-tab[data-cat="ads"].is-active  .mk-tab-en{color:rgb(var(--cat-ads))}
+.mk-tab[data-cat="site"].is-active .mk-tab-en{color:rgb(var(--cat-site))}
+.mk-tab[data-cat="ltv"].is-active  .mk-tab-en{color:rgb(var(--cat-ltv))}
+.mk-tab[data-cat="goal"].is-active .mk-tab-en{color:rgb(var(--cat-goal))}
+
+/* ---- Main ---- */
+.mk-main{max-width:1440px;margin:0 auto;padding:28px 28px 64px;width:100%}
+.mk-cathead{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding-bottom:20px;margin-bottom:22px;border-bottom:1px solid var(--line)}
+.mk-cathead-eyebrow{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
+.mk-cathead-eyebrow code{background:var(--accent-soft);color:var(--accent-ink);padding:2px 6px;border-radius:4px}
+.mk-cathead-title{font-size:30px;font-weight:700;letter-spacing:-.01em;line-height:1.1;margin-bottom:4px}
+.mk-cathead-en{color:var(--muted);font-weight:400;font-size:20px;font-family:var(--mono)}
+.mk-cathead-desc{color:var(--muted);font-size:13px;max-width:640px;line-height:1.55}
+.mk-cathead-meta{display:none}
+.mk-meta-box{display:flex;flex-direction:column;gap:4px;min-width:104px;padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.mk-meta-label{font-family:var(--mono);font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.mk-meta-val{font-size:15px;font-weight:600}
+.mk-live{display:inline-flex;align-items:center;gap:6px;color:var(--good);font-family:var(--mono)}
+.mk-live-dot{width:7px;height:7px;border-radius:50%;background:var(--good);animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(42,122,80,.6)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+
+/* ---- Grid ---- */
+.mk-grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fill,minmax(440px,1fr))}
+.mk-grid.theme-editorial{grid-template-columns:1fr}
+.mk-grid.theme-terminal,.mk-grid.theme-pattern-d{grid-template-columns:repeat(auto-fill,minmax(460px,1fr))}
+@media(max-width:900px){.mk-grid,.mk-grid.theme-terminal,.mk-grid.theme-pattern-d{grid-template-columns:1fr}.mk-cathead{flex-direction:column;align-items:flex-start}.mk-cathead-title{font-size:24px}}
+@media(max-width:768px){
+  .mk-tabs-inner{gap:0;padding:0}
+  .mk-tab{flex:1;align-items:center;justify-content:center;padding:8px 4px 7px;text-align:center}
+  .mk-chips-inner{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:8px 16px}
+  .mk-chips-inner::-webkit-scrollbar{display:none}
+  .mk-top-inner{padding:10px 16px;transition:padding .25s}
+  header.is-compact .mk-top-inner{padding:7px 16px}
+  .mk-menu-btn{display:none}
+  .mk-menu-btn{width:100%;align-items:center;justify-content:center;gap:6px;appearance:none;border:0;border-top:1px solid var(--line);background:transparent;color:var(--muted);font:500 11px/1 var(--mono);letter-spacing:.06em;padding:9px 16px;cursor:pointer}
+  .mk-chips-close{width:100%;align-items:center;justify-content:center;gap:6px;appearance:none;border:0;border-top:1px solid var(--line);background:transparent;color:var(--muted);font:500 11px/1 var(--mono);letter-spacing:.06em;padding:7px 16px;cursor:pointer}
+  .mk-tabs-inner{padding:0 16px}
+  .mk-main{padding:16px 16px 48px}
+}
+@media(min-width:769px){.mk-menu-btn{display:none!important}.mk-chips-close{display:none!important}}
+@media(min-width:1280px){.mk-grid.theme-editorial{grid-template-columns:1fr 1fr}}
+
+/* ---- Input rows ---- */
+.mk-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.mk-row:last-child{border-bottom:0}
+.mk-row-label{font-size:13px;color:var(--ink-2);font-weight:500}
+.mk-row-field{display:inline-flex;align-items:baseline;gap:5px;padding:5px 9px;border:1px solid var(--line-2);background:var(--surface);min-width:155px;justify-content:flex-end;transition:border-color .12s,background .12s}
+.mk-row-field:focus-within{border-color:var(--accent);background:var(--accent-soft)}
+.mk-row-field input{appearance:textfield;-moz-appearance:textfield;border:0;outline:0;background:transparent;color:var(--ink);font:600 17px/1.2 var(--mono);width:105px;text-align:right;padding:0}
+.mk-row-field input::-webkit-outer-spin-button,.mk-row-field input::-webkit-inner-spin-button{-webkit-appearance:none}
+.mk-row-unit{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+body[data-theme="terminal"] .mk-row-field{background:rgba(0,0,0,.35)}
+body[data-theme="terminal"] .mk-row-field input{color:var(--accent)}
+
+/* ---- Card A: Minimal ---- */
+.cardA{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:2px;padding:26px 26px 24px;display:flex;flex-direction:column;gap:20px}
+.cardA::before,.cardA::after{content:"";position:absolute;width:10px;height:10px;pointer-events:none;border-color:var(--accent);border-style:solid}
+.cardA::before{top:-1px;left:-1px;border-width:1px 0 0 1px}
+.cardA::after{bottom:-1px;right:-1px;border-width:0 1px 1px 0}
+.cardA-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.cardA-code{font:700 26px/1 var(--mono);color:var(--ink);letter-spacing:-.01em;flex-shrink:0}
+.cardA-code-wrap{display:flex;align-items:center;gap:12px}
+.cardA-titles{display:flex;flex-direction:column;gap:2px}
+.cardA-name{font-size:12px;font-weight:500;color:var(--ink-2);line-height:1.25}
+.cardA-sub{font-size:12px;color:var(--ink-2);line-height:1.25}
+.cardA-defbtn{appearance:none;border:1px solid var(--line-2);background:transparent;color:var(--muted);padding:5px 9px;font:500 10px/1 var(--mono);cursor:pointer;text-transform:uppercase;letter-spacing:.08em;flex-shrink:0;display:inline-flex;align-items:center;gap:5px}
+.cardA-defbtn:hover{border-color:var(--accent);color:var(--accent-ink)}
+.mk-chips-bar{border-top:1px solid var(--line);background:inherit}
+.mk-chips-inner{max-width:1440px;margin:0 auto;padding:8px 28px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.mk-chip{appearance:none;border:1px solid var(--line-2);background:transparent;color:var(--muted);font:600 10px/1 var(--mono);padding:4px 9px;cursor:pointer;letter-spacing:.06em;transition:border-color .12s,color .12s,background .12s}
+.mk-chip:hover{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft)}
+/* カテゴリカラー定義 */
+:root{--cat-ads:210,80,60;--cat-site:40,130,200;--cat-ltv:50,155,100;--cat-goal:130,80,200}
+/* モードA: 左ボーダー */
+.chips-mode-a .mk-chip[data-cat="ads"] {border-left:3px solid rgb(var(--cat-ads))}
+.chips-mode-a .mk-chip[data-cat="site"]{border-left:3px solid rgb(var(--cat-site))}
+.chips-mode-a .mk-chip[data-cat="ltv"] {border-left:3px solid rgb(var(--cat-ltv))}
+.chips-mode-a .mk-chip[data-cat="goal"]{border-left:3px solid rgb(var(--cat-goal))}
+/* モードB: 背景色 */
+.chips-mode-b .mk-chip[data-cat="ads"] {background:rgba(var(--cat-ads),.08);border-color:rgba(var(--cat-ads),.25);color:rgb(var(--cat-ads))}
+.chips-mode-b .mk-chip[data-cat="site"]{background:rgba(var(--cat-site),.08);border-color:rgba(var(--cat-site),.25);color:rgb(var(--cat-site))}
+.chips-mode-b .mk-chip[data-cat="ltv"] {background:rgba(var(--cat-ltv),.08);border-color:rgba(var(--cat-ltv),.25);color:rgb(var(--cat-ltv))}
+.chips-mode-b .mk-chip[data-cat="goal"]{background:rgba(var(--cat-goal),.08);border-color:rgba(var(--cat-goal),.25);color:rgb(var(--cat-goal))}
+/* モードC: ラベル区切り */
+.mk-chip-label{font:700 9px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;padding:0 6px 0 2px;color:var(--faint);border-right:1px solid var(--line);margin-right:2px}
+.mk-chip-label[data-cat="ads"] {color:rgb(var(--cat-ads))}
+.mk-chip-label[data-cat="site"]{color:rgb(var(--cat-site))}
+.mk-chip-label[data-cat="ltv"] {color:rgb(var(--cat-ltv))}
+.mk-chip-label[data-cat="goal"]{color:rgb(var(--cat-goal))}
+/* スイッチャー */
+.mk-chip-switcher{display:none}
+.mk-chips-close{display:none}
+.mk-menu-btn{display:none}
+.mk-chip-sw{appearance:none;border:1px solid var(--line-2);background:transparent;color:var(--muted);font:600 9px/1 var(--mono);padding:3px 7px;cursor:pointer;letter-spacing:.05em}
+.mk-chip-sw.is-active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.cardA-def{position:relative;padding:14px 16px 14px 24px;background:repeating-linear-gradient(45deg,transparent 0 10px,rgba(0,0,0,.03) 10px 11px);border-top:1px solid var(--line-2);border-bottom:1px solid var(--line-2);margin:0 -26px}
+.cardA-def::before{content:"";position:absolute;left:26px;top:10px;bottom:10px;width:2px;background:var(--accent)}
+.cardA-formula{font-family:var(--mono);font-size:12px;color:var(--ink-2);margin-bottom:8px;display:flex;align-items:baseline;gap:8px}
+.cardA-formula-tag{color:var(--accent-ink);font-weight:600;font-size:9.5px;text-transform:uppercase;border:1px solid currentColor;padding:2px 5px;letter-spacing:.1em}
+.cardA-def-text{font-size:12.5px;color:var(--muted);line-height:1.7}
+.cardA-inputs{display:flex;flex-direction:column;gap:16px}
+.cardA-outputs{display:flex;flex-wrap:wrap;gap:10px;margin:0 -26px -24px;padding:18px 26px 24px;background:var(--bg);border-top:1px solid var(--line)}
+.cardA-out{flex:1 1 120px;min-width:120px;display:flex;flex-direction:column;gap:4px;padding:13px;background:var(--surface);border:1px solid var(--line)}
+.cardA-out.primary{flex-basis:100%;padding:20px 22px;border-color:var(--accent);box-shadow:0 0 0 1px var(--surface) inset,0 0 0 4px var(--accent-soft) inset;position:relative}
+.cardA-out.primary::before{content:none}
+.cardA-out-label{font:500 10px/1.2 var(--mono);color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+.cardA-out.primary .cardA-out-label{color:var(--accent-ink)}
+.cardA-out-value{font:600 30px/1.05 var(--mono);color:var(--ink);margin-top:4px;letter-spacing:-.015em}
+.cardA-out.primary .cardA-out-value{font-size:38px;color:var(--accent-ink)}
+.cardA-bench{display:inline-block;font:500 10px/1 var(--mono);padding:3px 7px;margin-top:8px;letter-spacing:.1em;border:1px solid currentColor}
+.bench-good{color:var(--good);background:rgba(42,122,80,.08)}
+.bench-warn{color:var(--warn);background:rgba(192,112,32,.08)}
+.bench-info{color:var(--muted)}
+
+/* ---- Card B: Editorial ---- */
+.cardB{background:var(--surface);border:1px solid var(--line);padding:36px;display:grid;grid-template-columns:1.3fr 1fr;gap:44px;position:relative}
+body[data-theme="editorial"] .cardB{border-left:3px solid var(--accent)}
+.cardB-id{font:700 26px/1 var(--mono);color:var(--ink);display:inline-flex;align-items:center;gap:10px;flex-shrink:0}
+.cardB-id::after{content:"";flex:1;height:1px;background:var(--line-2);width:44px;margin-left:4px}
+.cardB-code-wrap{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.cardB-titles{display:flex;flex-direction:column;gap:2px}
+.cardB-name{font-size:12px;font-weight:500;color:var(--ink-2);line-height:1.25}
+.cardB-sub{font-size:12px;color:var(--ink-2);line-height:1.25}
+.cardB-hero{margin:28px 0 22px;padding:24px 0;border-top:1px solid var(--ink);border-bottom:1px solid var(--line);position:relative}
+.cardB-hero::before{content:"";position:absolute;top:-1px;left:0;width:44px;height:3px;background:var(--accent)}
+.cardB-value{font:700 46px/.95 var(--mono);letter-spacing:-.025em;color:var(--ink)}
+.cardB-value-label{display:flex;align-items:center;gap:9px;margin-top:7px;font:500 11.5px/1 var(--mono);color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.cardB-bench{font:500 10px/1 var(--mono);padding:3px 7px;border-radius:2px;letter-spacing:.07em}
+.cardB-secondary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.cardB-sec{flex:1 1 auto;min-width:110px;display:flex;flex-direction:column;gap:3px;padding:9px 11px;background:var(--bg);border-radius:4px}
+.cardB-sec span{font:500 9.5px/1 var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.cardB-sec b{font:600 17px/1 var(--mono);color:var(--ink)}
+.cardB-formula{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);margin-bottom:10px;padding:9px 11px;background:var(--accent-soft);border-radius:4px}
+.cardB-formula em{font-style:normal;color:var(--accent-ink);font-weight:600;margin-right:6px}
+.cardB-def{font-size:13px;color:var(--muted);line-height:1.7}
+.cardB-right{display:flex;flex-direction:column;gap:16px;padding:22px;background:var(--bg);border-radius:4px;align-self:start;position:sticky;top:130px}
+@media(max-width:900px){.cardB{grid-template-columns:1fr;padding:20px;gap:20px}.cardB-value{font-size:40px}.cardB-right{position:static}}
+
+/* ---- Card C: Terminal ---- */
+.cardC{background:var(--surface);border:1px solid var(--line);border-radius:2px;font-family:var(--mono);overflow:hidden;position:relative}
+.cardC::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:repeating-linear-gradient(to right,var(--accent) 0 6px,transparent 6px 12px);opacity:.5}
+.cardC-head{display:flex;align-items:center;gap:9px;padding:11px 17px;background:rgba(0,0,0,.15);border-bottom:1px solid var(--line)}
+body[data-theme="minimal"] .cardC-head{background:var(--bg)}
+body[data-theme="editorial"] .cardC-head{background:var(--bg)}
+body[data-theme="pattern-d"] .cardC-head{background:var(--bg)}
+body[data-theme="pattern-d"] .cardC-dot{box-shadow:none}
+.cardC-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent)}
+.cardC-path{font-size:11px;color:var(--muted);letter-spacing:.03em}
+.cardC-name{padding:20px 20px 8px;display:flex;align-items:center;gap:12px}
+.cardC-code{font:700 24px/1 var(--mono);color:var(--accent);letter-spacing:-.005em;flex-shrink:0}
+.cardC-titles{display:flex;flex-direction:column;gap:2px}
+.cardC-name h3{font-size:12px;font-weight:500;color:var(--ink-2);font-family:var(--mono)}
+.cardC-name p{font-size:12px;color:var(--ink-2);font-family:var(--mono)}
+.cardC-body{padding:6px 20px 20px;display:flex;flex-direction:column;gap:14px}
+.cardC-section{font-size:10px;color:var(--faint);letter-spacing:.14em;margin-bottom:10px}
+.cardC-inputs{display:flex;flex-direction:column;gap:12px;padding:12px 0;border-top:1px dashed var(--line)}
+.cardC-outputs{padding:12px 0;border-top:1px dashed var(--line)}
+.cardC-out{margin-bottom:9px;padding:9px 11px;border-left:2px solid var(--line-2);background:rgba(78,203,138,.04)}
+.cardC-out.primary{border-left-color:var(--accent);background:rgba(78,203,138,.1);padding:14px}
+.cardC-out-row{display:flex;align-items:center;gap:7px;font-size:13px}
+.cardC-arrow{color:var(--accent);font-weight:700}
+.cardC-label{color:var(--ink-2);flex-shrink:0;margin-right:3px}
+.cardC-value{color:var(--ink);font-weight:500;margin-left:auto}
+.cardC-out.primary .cardC-value{color:var(--accent);font-size:26px;font-weight:700;letter-spacing:-.01em}
+.cardC-bench{font-size:10px;margin:3px 0 0 14px;letter-spacing:.07em}
+.cardC-formula-box{margin-top:12px;padding:11px;background:rgba(78,203,138,.08);border-radius:4px}
+.cardC-formula-box code{display:block;font-size:11.5px;color:var(--accent);margin:3px 0 7px}
+.cardC-formula-box p{font-size:11px;color:var(--muted);line-height:1.65}
+
+/* ---- Footer ---- */
+.mk-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:44px;padding-top:18px;border-top:1px solid var(--line);font:500 11px/1.6 var(--mono);color:var(--muted)}
+.mk-footer-legend{display:flex;gap:14px}
+
+@media(max-width:600px){.mk-top-inner{flex-wrap:wrap;gap:10px}.mk-main{padding:20px 16px 48px}.mk-grid{gap:14px}}
+
+/* ---- View Toggle ---- */
+.mk-view-toggle{display:flex;gap:2px;flex-shrink:0}
+.mk-view-btn{appearance:none;border:1px solid var(--line-2);background:transparent;color:var(--muted);font:600 10.5px/1 var(--mono);padding:5px 10px;cursor:pointer;letter-spacing:.04em;transition:background .12s,color .12s,border-color .12s}
+.mk-view-btn:hover{border-color:var(--accent);color:var(--accent-ink)}
+.mk-view-btn.is-active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* ---- Card L: List View ---- */
+.mk-grid.view-list{display:flex;flex-direction:column;gap:0}
+.cardL-wrap{border-bottom:1px solid var(--line);background:var(--surface);transition:background .12s ease}
+.cardL-wrap:hover{background:color-mix(in srgb,var(--accent-soft) 50%,var(--surface))}
+.cardL-wrap:first-child{border-top:1px solid var(--line)}
+.cardL-wrap.is-open{background:color-mix(in srgb,var(--accent-soft) 30%,var(--surface))}
+.cardL{display:grid;grid-template-columns:220px minmax(0,1fr) 24px 280px 70px;gap:0 24px;align-items:center;padding:18px 24px}
+.cardL-head{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cardL-code{font:700 22px/1 var(--mono);letter-spacing:-.01em;color:var(--ink)}
+.cardL-titles h3{margin:4px 0 0;font:500 14px/1.25 var(--sans);color:var(--ink-2)}
+.cardL-titles p{margin:2px 0 0;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cardL-inputs{min-width:0}
+.cardL-inputs .mk-row{padding:6px 0;border-bottom:1px dotted var(--line)}
+.cardL-inputs .mk-row:last-child{border-bottom:0}
+.cardL-inputs .mk-row-field{min-width:150px;padding:4px 8px}
+.cardL-inputs .mk-row-field input{font-size:15px;width:90px}
+.cardL-arrow{font:500 18px/1 var(--mono);color:var(--faint);text-align:center}
+.cardL-result{display:flex;flex-direction:column;gap:2px;padding:14px 18px;background:var(--accent-soft);border:1px solid var(--accent);position:relative}
+.cardL-result::before{content:"";position:absolute;left:-1px;top:-1px;width:6px;height:6px;border-left:1px solid var(--accent);border-top:1px solid var(--accent)}
+.cardL-result::after{content:"";position:absolute;right:-1px;bottom:-1px;width:6px;height:6px;border-right:1px solid var(--accent);border-bottom:1px solid var(--accent)}
+.cardL-out-label{font:500 10px/1 var(--mono);color:var(--accent-ink);letter-spacing:.14em;text-transform:uppercase}
+.cardL-value{font:700 28px/1.1 var(--mono);color:var(--accent-ink);letter-spacing:-.015em;margin-top:4px}
+.cardL-bench{display:inline-block;align-self:flex-start;margin-top:6px;font:500 10px/1 var(--mono);padding:3px 7px;border:1px solid currentColor;letter-spacing:.1em}
+.cardL-secs{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;padding-top:8px;border-top:1px dashed color-mix(in srgb,var(--accent) 30%,transparent)}
+.cardL-secs span{display:inline-flex;align-items:baseline;gap:6px;font-size:11px;color:var(--muted);font-family:var(--mono)}
+.cardL-secs em{font-style:normal;letter-spacing:.05em;text-transform:uppercase;font-size:9.5px}
+.cardL-secs b{color:var(--ink);font-weight:600;font-size:12.5px}
+.cardL-defbtn{appearance:none;border:1px solid var(--line-2);background:transparent;color:var(--muted);font:500 10.5px/1 var(--mono);padding:8px 6px;cursor:pointer;letter-spacing:.08em;border-radius:0;width:100%}
+.cardL-defbtn:hover{border-color:var(--accent);color:var(--accent-ink)}
+.cardL-def{display:none;padding:16px 24px 22px;background:var(--bg);border-top:1px dashed var(--line-2)}
+.cardL-def-formula{font-family:var(--mono);font-size:13px;color:var(--ink-2);margin-bottom:10px;display:flex;align-items:baseline;gap:10px}
+.cardL-def-formula span{font:600 10px/1 var(--mono);color:var(--accent-ink);border:1px solid currentColor;padding:3px 7px;letter-spacing:.1em;text-transform:uppercase}
+.cardL-def p{margin:0;font-size:13px;color:var(--muted);line-height:1.7;max-width:860px}
+@media(max-width:1100px){
+  .cardL{grid-template-columns:1fr;gap:14px;padding:20px}
+  .cardL-arrow{display:none}
+  .cardL-result{order:-1}
+}
+</style>
+</head>
+<body data-theme="editorial">
+
+<header class="mk-top">
+  <div class="mk-top-inner">
+    <div class="mk-brand">
+      <div class="mk-brand-icon">
+        <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+          <rect x="1" y="1" width="20" height="20" rx="4" stroke="currentColor" stroke-width="1.4"/>
+          <path d="M5 14 L9 8 L13 12 L17 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="mk-brand-name">マーケ計算ツール</div>
+        <div class="mk-brand-sub">Marketing Metrics Calculator · v1.0</div>
+      </div>
+    </div>
+    <div class="mk-themebar" id="themebar">
+      <button class="mk-theme-btn" data-theme="minimal">A. Minimal</button>
+      <button class="mk-theme-btn is-active" data-theme="editorial">B. Editorial</button>
+      <button class="mk-theme-btn" data-theme="terminal">C. Terminal</button>
+      <button class="mk-theme-btn" data-theme="pattern-d">D. Mono</button>
+    </div>
+  </div>
+  <nav class="mk-tabs">
+    <div class="mk-tabs-inner" id="tabs"></div>
+  </nav>
+  <div class="mk-chips-bar chips-mode-b" id="chips-bar">
+    <button class="mk-menu-btn"># 指標を表示</button>
+    <div class="mk-chips-inner">
+      <div id="chips" style="display:contents"></div>
+      <div class="mk-chip-switcher">
+        <button class="mk-chip-sw" data-mode="a">A</button>
+        <button class="mk-chip-sw is-active" data-mode="b">B</button>
+        <button class="mk-chip-sw" data-mode="c">C</button>
+      </div>
+    </div>
+    <button class="mk-chips-close">✕ 閉じる</button>
+  </div>
+</header>
+
+<main class="mk-main">
+  <div class="mk-cathead" id="cathead"></div>
+  <div class="mk-grid" id="grid"></div>
+  <footer class="mk-footer">
+    <div>数値はすべてブラウザ内で計算されます。入力を変更すると即時再計算。</div>
+    <div class="mk-footer-legend"><span>¥ = 円</span><span>%</span><span>x = 倍率</span></div>
+  </footer>
+</main>
+
+<script>
+// ---- フォーマッター ----
+const fmt = {
+  num(n, d=0) {
+    if (!isFinite(n) || isNaN(n)) return '—';
+    return n.toLocaleString('ja-JP', {maximumFractionDigits: d});
+  },
+  yen(n) { return isFinite(n)&&!isNaN(n) ? fmt.num(Math.round(n)) + '円' : '—'; },
+  pct(n, d=2) { return isFinite(n)&&!isNaN(n) ? (n*100).toFixed(d)+'%' : '—'; },
+  ratio(n, d=2) { return isFinite(n)&&!isNaN(n) ? n.toFixed(d)+'x' : '—'; },
+  months(n) { return isFinite(n)&&!isNaN(n) ? n.toFixed(1)+'ヶ月' : '—'; },
+  time(n) { if(!isFinite(n)||isNaN(n)) return '—'; const s=Math.round(n); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; },
+};
+
+// ---- カタログ ----
+const CATALOG = [
+  // 広告指標
+  { id:'cpc', cat:'ads', code:'CPC', name:'Cost Per Click', sub:'1クリックあたりの広告費',
+    formula:'CPC = 広告費 ÷ クリック数',
+    def:'ユーザーが広告を1回クリックするごとに発生する平均コスト。入札・クリエイティブ・ターゲティングの効率を測る最も基本的な指標。',
+    inputs:[{k:'cost',l:'広告費',u:'円',s:1000,v:500000},{k:'clicks',l:'クリック数',u:'clicks',s:100,v:12500}],
+    outputs:[{k:'cpc',l:'CPC',f:fmt.yen,p:true}],
+    calc:({cost,clicks})=>({cpc:cost/clicks}) },
+
+  { id:'cpm', cat:'ads', code:'CPM', name:'Cost Per Mille', sub:'1,000インプレッションあたりの広告費',
+    formula:'CPM = (広告費 ÷ Imp数) × 1,000',
+    def:'広告が1,000回表示されるごとの費用。ブランド認知・リーチ目的キャンペーンの主要KPI。',
+    inputs:[{k:'cost',l:'広告費',u:'円',s:1000,v:300000},{k:'imp',l:'インプレッション',u:'imp',s:10000,v:500000}],
+    outputs:[{k:'cpm',l:'CPM',f:fmt.yen,p:true}],
+    calc:({cost,imp})=>({cpm:(cost/imp)*1000}) },
+
+  { id:'ctr', cat:'ads', code:'CTR', name:'Click Through Rate', sub:'クリック率',
+    formula:'CTR = クリック数 ÷ インプレッション数',
+    def:'広告表示のうちクリックされた割合。クリエイティブと訴求のマッチ度を示す。検索広告で3–5%、ディスプレイで0.5%前後が一般的。',
+    inputs:[{k:'imp',l:'インプレッション',u:'imp',s:10000,v:500000},{k:'clicks',l:'クリック数',u:'clicks',s:100,v:12500}],
+    outputs:[{k:'ctr',l:'CTR',f:fmt.pct,p:true}],
+    calc:({imp,clicks})=>({ctr:clicks/imp}) },
+
+  { id:'cvr', cat:'ads', code:'CVR', name:'Conversion Rate', sub:'コンバージョン率',
+    formula:'CVR = CV数 ÷ クリック数',
+    def:'流入のうちコンバージョンに至った割合。LPの品質・オファーの強さ・ユーザー意図との整合性を表す。',
+    inputs:[{k:'clicks',l:'クリック数',u:'clicks',s:100,v:12500},{k:'cv',l:'CV数',u:'cv',s:1,v:375}],
+    outputs:[{k:'cvr',l:'CVR',f:fmt.pct,p:true}],
+    calc:({clicks,cv})=>({cvr:cv/clicks}) },
+
+  { id:'cpa', cat:'ads', code:'CPA', name:'Cost Per Acquisition', sub:'獲得単価',
+    formula:'CPA = 広告費 ÷ CV数',
+    def:'1件のコンバージョンを獲得するのにかかった費用。許容CPA(=粗利×目標ROI)以下に保つことが目標。',
+    inputs:[{k:'cost',l:'広告費',u:'円',s:1000,v:500000},{k:'cv',l:'CV数',u:'cv',s:1,v:375,min:1}],
+    outputs:[{k:'cpa',l:'CPA',f:fmt.yen,p:true}],
+    calc:({cost,cv})=>({cpa:cost/cv}) },
+
+  { id:'roas', cat:'ads', code:'ROAS', name:'Return On Ad Spend', sub:'広告費用対効果',
+    formula:'ROAS = 売上 ÷ 広告費 × 100%',
+    def:'広告費1円あたりの売上。粗利率によって損益分岐ROASは変動（例：粗利50%→損益分岐200%）。',
+    inputs:[{k:'revenue',l:'売上',u:'円',s:10000,v:3000000},{k:'cost',l:'広告費',u:'円',s:1000,v:500000,min:1}],
+    outputs:[{k:'roas',l:'ROAS',f:fmt.pct,p:true}],
+    calc:({revenue,cost})=>({roas:revenue/cost}) },
+
+  { id:'freq', cat:'ads', code:'Frequency', name:'Frequency & Reach', sub:'フリークエンシー / リーチ',
+    formula:'Frequency = Impressions ÷ Reach',
+    def:'ユーザー1人あたり広告が表示された平均回数。高すぎるとブランド毀損・低CTR化。通常2–5回が目安。',
+    inputs:[{k:'imp',l:'インプレッション',u:'imp',s:10000,v:500000},{k:'reach',l:'リーチ(ユニーク人数)',u:'users',s:1000,v:120000,min:1}],
+    outputs:[{k:'freq',l:'Frequency',f:n=>(isFinite(n)?n.toFixed(2):'—')+'回/人',p:true},{k:'reachPct',l:'Reach%(Imp比)',f:fmt.pct}],
+    calc:({imp,reach})=>({freq:imp/reach,reachPct:reach/imp}) },
+
+  { id:'vtr', cat:'ads', code:'VTR', name:'動画視聴完了率', sub:'Video Through Rate',
+    formula:'VTR = 完全視聴数 ÷ 動画再生数',
+    def:'動画広告が最後まで視聴された割合。YouTube目安15〜30%、TikTok目安8〜15%。クリエイティブの訴求力・尺の最適化指標として使う。',
+    inputs:[{k:'plays',l:'動画再生数',u:'回',s:10000,v:100000,min:1},{k:'views',l:'完全視聴数',u:'回',s:1000,v:25000,min:0}],
+    outputs:[{k:'vtr',l:'VTR',f:fmt.pct,p:true,
+      bench:(n)=>n>=0.15?{t:'good',l:'≥15% 良好'}:n<0.08?{t:'warn',l:'<8% 改善要'}:null}],
+    calc:({plays,views})=>({vtr:views/plays}) },
+
+  { id:'cpv', cat:'ads', code:'CPV', name:'Cost Per View', sub:'動画視聴単価',
+    formula:'CPV = 広告費 ÷ 視聴数',
+    def:'動画広告1視聴あたりのコスト。YouTube TrueView・TikTok等の動画フォーマットで主要な入稿・評価指標。完全視聴数での計算が一般的。',
+    inputs:[{k:'cost',l:'広告費',u:'円',s:10000,v:500000},{k:'views',l:'視聴数',u:'回',s:10000,v:50000,min:1}],
+    outputs:[{k:'cpv',l:'CPV',f:fmt.yen,p:true}],
+    calc:({cost,views})=>({cpv:cost/views}) },
+
+  { id:'cpl', cat:'ads', code:'CPL', name:'Cost Per Lead', sub:'リード獲得単価',
+    formula:'CPL = 広告費 ÷ リード数',
+    def:'1件のリード（資料請求・無料登録・問合せ）を獲得するコスト。受注率を加味した受注CPA換算で、許容CPLの上限を設計する。',
+    inputs:[{k:'cost',l:'広告費',u:'円',s:10000,v:500000},{k:'leads',l:'リード数',u:'件',s:10,v:100,min:1},{k:'conv',l:'リード→受注率',u:'%',s:0.01,v:0.10,pct:true,min:0.001}],
+    outputs:[{k:'cpl',l:'CPL',f:fmt.yen,p:true},{k:'cpo',l:'受注CPA',f:fmt.yen}],
+    calc:({cost,leads,conv})=>({cpl:cost/leads,cpo:cost/(leads*conv)}) },
+
+
+  // サイト・EC指標
+  { id:'bounce', cat:'site', code:'Bounce', name:'Bounce Rate', sub:'直帰率',
+    formula:'Bounce Rate = 単一PVセッション ÷ 全セッション',
+    def:'1ページだけ見て離脱したセッションの割合。コンテンツとユーザー意図のミスマッチを測る基本指標。LP/メディアで40〜60%が一般的、ECは20〜40%が目安。',
+    inputs:[{k:'sessions',l:'全セッション数',u:'sessions',s:100,v:10000,min:1},{k:'bounces',l:'直帰セッション数',u:'sessions',s:100,v:5500,min:0}],
+    outputs:[{k:'rate',l:'Bounce Rate',f:fmt.pct,p:true,
+      bench:(n)=>n<=0.4?{t:'good',l:'≤40% 良好'}:n>=0.7?{t:'warn',l:'≥70% 改善要'}:null}],
+    calc:({sessions,bounces})=>({rate:bounces/sessions}) },
+
+  { id:'engagement', cat:'site', code:'Engagement', name:'Engagement Rate', sub:'エンゲージメント率 (GA4)',
+    formula:'Engagement Rate = エンゲージメントセッション ÷ 全セッション',
+    def:'GA4標準指標。10秒以上の滞在・CV・2PV以上のいずれかを満たすセッション割合。直帰率の事実上の後継。LPは60%以上、メディアは50%前後が目安。',
+    inputs:[{k:'sessions',l:'全セッション数',u:'sessions',s:100,v:10000,min:1},{k:'engaged',l:'エンゲージメントセッション',u:'sessions',s:100,v:5500,min:0}],
+    outputs:[{k:'rate',l:'Engagement Rate',f:fmt.pct,p:true,
+      bench:(n)=>n>=0.6?{t:'good',l:'≥60% 良好'}:n<0.4?{t:'warn',l:'<40% 改善要'}:null}],
+    calc:({sessions,engaged})=>({rate:engaged/sessions}) },
+
+  { id:'pps', cat:'site', code:'Pages/Session', name:'Pages per Session', sub:'セッションあたりPV',
+    formula:'Pages/Session = PV数 ÷ セッション数',
+    def:'1セッションで閲覧された平均ページ数。サイト内の回遊性を示す。メディア・コーポレートは2〜4、ECは4〜6が目安。低い場合は内部リンク設計の見直し。',
+    inputs:[{k:'pv',l:'PV数',u:'pv',s:1000,v:35000,min:0},{k:'sessions',l:'セッション数',u:'sessions',s:100,v:10000,min:1}],
+    outputs:[{k:'pps',l:'Pages/Session',f:n=>(isFinite(n)?n.toFixed(2):'—')+' p/s',p:true}],
+    calc:({pv,sessions})=>({pps:pv/sessions}) },
+
+  { id:'asd', cat:'site', code:'Avg.Duration', name:'Avg. Session Duration', sub:'平均セッション時間',
+    formula:'Avg. Duration = 合計セッション時間 ÷ セッション数',
+    def:'1セッションあたりの平均滞在時間。コンテンツの読了・関与度の代理指標。記事・LPは60秒〜3分、ECは3〜6分が目安。短い場合はファーストビュー要改善。',
+    inputs:[{k:'total',l:'合計セッション時間',u:'秒',s:600,v:1200000,min:0},{k:'sessions',l:'セッション数',u:'sessions',s:100,v:10000,min:1}],
+    outputs:[{k:'avg',l:'平均セッション時間',f:fmt.time,p:true}],
+    calc:({total,sessions})=>({avg:total/sessions}) },
+
+  { id:'exit', cat:'site', code:'Exit', name:'Exit Rate', sub:'離脱率',
+    formula:'Exit Rate = そのページからの離脱数 ÷ そのページのPV',
+    def:'特定ページがセッションの最終ページになった割合。直帰率と違い、回遊後の離脱も含む。ファネル中盤のページが高い場合は要改善ポイント。',
+    inputs:[{k:'pv',l:'当該ページのPV',u:'pv',s:100,v:5000,min:1},{k:'exits',l:'離脱数',u:'回',s:50,v:2000,min:0}],
+    outputs:[{k:'rate',l:'Exit Rate',f:fmt.pct,p:true}],
+    calc:({pv,exits})=>({rate:exits/pv}) },
+
+  { id:'scroll', cat:'site', code:'Scroll', name:'Scroll Depth', sub:'スクロール到達率',
+    formula:'Scroll Depth = 指定地点到達セッション ÷ 全セッション',
+    def:'LP・記事の特定スクロール位置（50%/75%/CTA直前など）まで到達した割合。読了率・CTA可視率の代理指標。低い場合はファーストビューの離脱、または尺が長すぎる兆候。',
+    inputs:[{k:'sessions',l:'全セッション数',u:'sessions',s:100,v:10000,min:1},{k:'reached',l:'指定地点到達数',u:'sessions',s:100,v:3000,min:0}],
+    outputs:[{k:'rate',l:'到達率',f:fmt.pct,p:true,
+      bench:(n)=>n>=0.5?{t:'good',l:'≥50% 良好'}:n<0.2?{t:'warn',l:'<20% 改善要'}:null}],
+    calc:({sessions,reached})=>({rate:reached/sessions}) },
+
+  { id:'aov', cat:'site', code:'AOV', name:'Average Order Value', sub:'平均注文単価',
+    formula:'AOV = 売上 ÷ 注文数',
+    def:'1注文あたりの平均金額。ECの基本KPI。クロスセル・アップセル・送料無料閾値・セット販売の効果測定に使う。',
+    inputs:[{k:'revenue',l:'売上',u:'円',s:10000,v:5000000,min:0},{k:'orders',l:'注文数',u:'件',s:10,v:500,min:1}],
+    outputs:[{k:'aov',l:'AOV',f:fmt.yen,p:true}],
+    calc:({revenue,orders})=>({aov:revenue/orders}) },
+
+  { id:'rpv', cat:'site', code:'RPV', name:'Revenue Per Visitor', sub:'訪問者あたり売上',
+    formula:'RPV = 売上 ÷ ユニーク訪問者数',
+    def:'AOVとCVRを掛け合わせた総合指標。サイト全体の収益力を1人あたりで測る。流入の質と購買力の両方を反映するため、A/Bテストの最終判断に向く。',
+    inputs:[{k:'revenue',l:'売上',u:'円',s:10000,v:5000000,min:0},{k:'visitors',l:'ユニーク訪問者',u:'users',s:100,v:25000,min:1}],
+    outputs:[{k:'rpv',l:'RPV',f:fmt.yen,p:true}],
+    calc:({revenue,visitors})=>({rpv:revenue/visitors}) },
+
+  { id:'cart', cat:'site', code:'CartAbandon', name:'Cart Abandonment Rate', sub:'カゴ落ち率',
+    formula:'Cart Abandonment = (カート追加 − 注文) ÷ カート追加',
+    def:'カートに商品を入れたが購入完了に至らなかった割合。EC業界平均は約70%。送料表示・決済導線・カート復元メールが主な改善ポイント。',
+    inputs:[{k:'adds',l:'カート追加数',u:'回',s:100,v:5000,min:1},{k:'orders',l:'注文数',u:'件',s:10,v:1500,min:0}],
+    outputs:[{k:'rate',l:'カゴ落ち率',f:fmt.pct,p:true,
+      bench:(n)=>n<=0.6?{t:'good',l:'≤60% 良好'}:n>=0.8?{t:'warn',l:'≥80% 改善要'}:null}],
+    calc:({adds,orders})=>({rate:(adds-orders)/adds}) },
+
+  { id:'form', cat:'site', code:'FormComp', name:'Form Completion Rate', sub:'フォーム完了率',
+    formula:'Form Completion = フォーム完了数 ÷ フォーム到達数',
+    def:'問合せ・資料請求・登録フォームに到達したユーザーのうち、完了した割合。リード獲得の最重要ボトルネック。EFO（フォーム最適化）の効果測定に使う。50%以下なら設計見直し。',
+    inputs:[{k:'arrive',l:'フォーム到達数',u:'回',s:50,v:2000,min:1},{k:'complete',l:'フォーム完了数',u:'件',s:10,v:600,min:0}],
+    outputs:[{k:'rate',l:'完了率',f:fmt.pct,p:true,
+      bench:(n)=>n>=0.6?{t:'good',l:'≥60% 良好'}:n<0.3?{t:'warn',l:'<30% 改善要'}:null}],
+    calc:({arrive,complete})=>({rate:complete/arrive}) },
+
+
+  // 収益・LTV
+  { id:'ltv', cat:'ltv', code:'LTV', name:'Lifetime Value', sub:'顧客生涯価値 (単純版)',
+    formula:'LTV = 平均購入単価 × 購入回数 × 継続期間',
+    def:'1顧客から得られる総収益の期待値。EC・D2Cで広く使われるシンプル版。',
+    inputs:[{k:'aov',l:'平均購入単価 (AOV)',u:'円',s:100,v:8000},{k:'freq',l:'購入回数 / 年',u:'回',s:1,v:4},{k:'years',l:'継続年数',u:'年',s:0.5,v:2.5}],
+    outputs:[{k:'ltv',l:'LTV',f:fmt.yen,p:true}],
+    calc:({aov,freq,years})=>({ltv:aov*freq*years}) },
+
+  { id:'cmlv', cat:'ltv', code:'SaaS LTV', name:'LTV (Churn-based)', sub:'SaaS型LTV（チャーン考慮）',
+    formula:'LTV = ARPU × 粗利率 ÷ Churn Rate',
+    def:'サブスク/SaaSで最もよく使われる。月次解約率の逆数が平均継続期間となる。粗利率を掛けてCM-LTVで評価。',
+    inputs:[{k:'arpu',l:'ARPU / 月',u:'円',s:100,v:4800},{k:'gm',l:'粗利率',u:'%',s:0.01,v:0.75,pct:true},{k:'churn',l:'月次チャーン率',u:'%',s:0.001,v:0.035,pct:true,min:0.001}],
+    outputs:[{k:'ltv',l:'CM-LTV',f:fmt.yen,p:true},{k:'life',l:'平均継続月数',f:fmt.months}],
+    calc:({arpu,gm,churn})=>({ltv:(arpu*gm)/churn,life:1/churn}) },
+
+  { id:'arpu', cat:'ltv', code:'ARPU', name:'Avg. Revenue Per User', sub:'ユーザーあたり平均売上',
+    formula:'ARPU = 売上 ÷ 全ユーザー数 / ARPPU = 売上 ÷ 課金ユーザー数',
+    def:'ARPUは全ユーザーベース、ARPPUは課金者ベース。フリーミアムモデルでの収益性を理解するのに必須。',
+    inputs:[{k:'rev',l:'売上 / 月',u:'円',s:10000,v:12000000},{k:'users',l:'全ユーザー数',u:'users',s:100,v:50000,min:1},{k:'paying',l:'課金ユーザー数',u:'users',s:10,v:2500,min:1}],
+    outputs:[{k:'arpu',l:'ARPU',f:fmt.yen,p:true},{k:'arppu',l:'ARPPU',f:fmt.yen},{k:'payRate',l:'課金率',f:fmt.pct}],
+    calc:({rev,users,paying})=>({arpu:rev/users,arppu:rev/paying,payRate:paying/users}) },
+
+  { id:'cac', cat:'ltv', code:'CAC', name:'Customer Acquisition Cost', sub:'顧客獲得コスト',
+    formula:'CAC = (マーケ費 + セールス費) ÷ 新規顧客数',
+    def:'1顧客を獲得するための総コスト。広告費だけでなく人件費・ツール費も含めるのが本来のCAC。',
+    inputs:[{k:'mk',l:'マーケ費 / 月',u:'円',s:10000,v:2000000},{k:'sales',l:'セールス関連費 / 月',u:'円',s:10000,v:1500000},{k:'newCust',l:'新規顧客数 / 月',u:'人',s:1,v:150,min:1}],
+    outputs:[{k:'cac',l:'CAC',f:fmt.yen,p:true}],
+    calc:({mk,sales,newCust})=>({cac:(mk+sales)/newCust}) },
+
+  { id:'ltvcac', cat:'ltv', code:'LTV/CAC', name:'LTV to CAC Ratio', sub:'ユニットエコノミクス',
+    formula:'LTV/CAC = LTV ÷ CAC',
+    def:'SaaSの健全性指標。3.0以上が理想、1.0以下は赤字モデル。5.0超は投資不足のサインの可能性も。',
+    inputs:[{k:'ltv',l:'LTV',u:'円',s:1000,v:120000},{k:'cac',l:'CAC',u:'円',s:1000,v:25000,min:1}],
+    outputs:[{k:'ratio',l:'LTV / CAC',f:n=>fmt.ratio(n,2),p:true,bench:n=>{
+      if(n<1) return {l:'赤字',t:'warn'};
+      if(n<3) return {l:'要改善',t:'warn'};
+      if(n<=5) return {l:'健全',t:'good'};
+      return {l:'投資余地',t:'info'};
+    }}],
+    calc:({ltv,cac})=>({ratio:ltv/cac}) },
+
+  { id:'payback', cat:'ltv', code:'Payback', name:'Payback Period', sub:'回収期間',
+    formula:'Payback = CAC ÷ (ARPU × 粗利率)',
+    def:'獲得コストを回収するまでの月数。SaaSでは12ヶ月以内が優秀、24ヶ月以内が許容範囲とされる。',
+    inputs:[{k:'cac',l:'CAC',u:'円',s:1000,v:25000},{k:'arpu',l:'ARPU / 月',u:'円',s:100,v:4800,min:1},{k:'gm',l:'粗利率',u:'%',s:0.01,v:0.75,pct:true,min:0.01}],
+    outputs:[{k:'months',l:'回収期間',f:fmt.months,p:true}],
+    calc:({cac,arpu,gm})=>({months:cac/(arpu*gm)}) },
+
+  { id:'mrr', cat:'ltv', code:'MRR', name:'MRR / ARR', sub:'月次・年次経常収益',
+    formula:'MRR = ARPU × 有料ユーザー数 / ARR = MRR × 12',
+    def:'サブスク・SaaS事業の根幹KPI。投資家・経営者への説明でも最重要。ARRが1億円を超えると次のフェーズとされる場合が多い。',
+    inputs:[{k:'arpu',l:'月額ARPU',u:'円',s:500,v:3000,min:1},{k:'users',l:'有料ユーザー数',u:'人',s:50,v:500,min:1}],
+    outputs:[{k:'mrr',l:'MRR（月次）',f:fmt.yen,p:true},{k:'arr',l:'ARR（年次）',f:fmt.yen}],
+    calc:({arpu,users})=>({mrr:arpu*users,arr:arpu*users*12}) },
+
+  { id:'churn', cat:'ltv', code:'Churn', name:'月次チャーン率', sub:'Churn Rate',
+    formula:'Churn Rate = 月間解約数 ÷ 月初ユーザー数',
+    def:'解約率の逆数が平均継続期間になる。2%以下が健全、5%以上は事業モデルの再検討が必要。CM-LTV計算の前提指標。',
+    inputs:[{k:'start',l:'月初ユーザー数',u:'人',s:100,v:1000,min:1},{k:'lost',l:'月間解約数',u:'人',s:5,v:30,min:0}],
+    outputs:[{k:'churn',l:'Churn Rate',f:fmt.pct,p:true,
+      bench:(n)=>n<=0.02?{t:'good',l:'≤2% 健全'}:n>=0.05?{t:'warn',l:'≥5% 要対策'}:null},{k:'tenure',l:'平均継続期間',f:fmt.months}],
+    calc:({start,lost})=>({churn:lost/Math.max(start,1),tenure:lost>0?start/lost:999}) },
+
+  // 目標逆算
+  { id:'rev2cv', cat:'goal', code:'Revenue→CV', name:'売上から必要CV数', sub:'目標売上に必要なコンバージョン',
+    formula:'必要CV = 目標売上 ÷ 平均単価',
+    def:'売上目標から、今期必要となるCV（購入・申込）件数を算出。',
+    inputs:[{k:'target',l:'目標売上',u:'円',s:100000,v:30000000},{k:'aov',l:'平均単価 (AOV)',u:'円',s:100,v:12000,min:1}],
+    outputs:[{k:'cv',l:'必要CV数',f:n=>fmt.num(Math.ceil(n))+' 件',p:true}],
+    calc:({target,aov})=>({cv:target/aov}) },
+
+  { id:'rev2bud', cat:'goal', code:'Revenue→予算', name:'売上から必要広告予算', sub:'目標ROASを満たす広告費',
+    formula:'必要広告予算 = 目標売上 ÷ 目標ROAS',
+    def:'目標売上と目標ROASから逆算した必要広告投下額。許容CPAと組み合わせて使う。目標ROASはGoogle Ads準拠の%表記（例: 600% = 6倍）。',
+    inputs:[{k:'target',l:'目標売上',u:'円',s:100000,v:30000000},{k:'roas',l:'目標ROAS',u:'%',s:10,v:600,min:50}],
+    outputs:[{k:'budget',l:'必要広告予算',f:fmt.yen,p:true},{k:'daily',l:'日割 (30日)',f:fmt.yen}],
+    calc:({target,roas})=>({budget:target/(roas/100),daily:(target/(roas/100))/30}) },
+
+  { id:'cv2sess', cat:'goal', code:'CV→Session', name:'CV数から必要セッション数', sub:'CVRから逆算する必要流入',
+    formula:'必要セッション = 目標CV ÷ CVR',
+    def:'目標CV数とサイトCVRから、月間で必要なセッション数を算出。',
+    inputs:[{k:'cv',l:'目標CV数',u:'件',s:1,v:2500},{k:'cvr',l:'CVR',u:'%',s:0.001,v:0.03,pct:true,min:0.001}],
+    outputs:[{k:'sessions',l:'必要セッション数',f:n=>fmt.num(Math.ceil(n))+'セッション',p:true}],
+    calc:({cv,cvr})=>({sessions:cv/cvr}) },
+
+  { id:'cv2imp', cat:'goal', code:'CV→Imp', name:'CV数から必要Imp', sub:'CTR×CVRから逆算する必要表示回数',
+    formula:'必要Imp = 目標CV ÷ CVR ÷ CTR',
+    def:'ファネル全体を逆算。広告表示→クリック→CVの各転換率から、必要なインプレッションを算出。',
+    inputs:[{k:'cv',l:'目標CV数',u:'件',s:1,v:2500},{k:'ctr',l:'CTR',u:'%',s:0.001,v:0.025,pct:true,min:0.0001},{k:'cvr',l:'CVR',u:'%',s:0.001,v:0.03,pct:true,min:0.0001}],
+    outputs:[{k:'imp',l:'必要インプレッション',f:n=>fmt.num(Math.ceil(n))+' imp',p:true},{k:'clicks',l:'必要クリック数',f:n=>fmt.num(Math.ceil(n))+'クリック'}],
+    calc:({cv,ctr,cvr})=>({imp:cv/cvr/ctr,clicks:cv/cvr}) },
+
+  { id:'mom', cat:'goal', code:'MoM', name:'月次成長率', sub:'MoM Growth vs. 目標',
+    formula:'MoM = (今月 − 先月) ÷ 先月',
+    def:'最も汎用的なKPI進捗指標。売上・MRR・CV数など単位を問わず使える。対目標達成率が100%未満なら残月でのキャッチアップが必要。',
+    inputs:[{k:'prev',l:'先月の値',u:'（¥ or 件）',s:100000,v:1000000,min:1},{k:'curr',l:'今月の値',u:'（¥ or 件）',s:100000,v:1100000,min:0},{k:'tgt',l:'目標成長率',u:'%',s:0.01,v:0.10,pct:true,min:0.001}],
+    outputs:[{k:'mom',l:'MoM成長率',f:fmt.pct,p:true,
+      bench:(n)=>n>=0.10?{t:'good',l:'目標達成'}:n>0?{t:'warn',l:'目標未達'}:{t:'warn',l:'マイナス成長'}},{k:'vsTgt',l:'対目標達成率',f:fmt.pct}],
+    calc:({prev,curr,tgt})=>({mom:(curr-prev)/prev,vsTgt:tgt>0?((curr-prev)/prev)/tgt:0}) },
+
+  { id:'breakeven', cat:'goal', code:'Break-even', name:'Break-even Point', sub:'損益分岐点',
+    formula:'損益分岐点売上 = 固定費 ÷ (1 − 変動費率)',
+    def:'これ以上売れば黒字になるラインの売上高。固定費（家賃・人件費）と変動費率（原価率）から算出。広告投下判断・値付け・撤退判断のベース指標。',
+    inputs:[{k:'fixed',l:'固定費 / 月',u:'円',s:10000,v:3000000,min:0},{k:'vr',l:'変動費率',u:'%',s:0.01,v:0.40,pct:true,min:0,max:0.99}],
+    outputs:[{k:'be',l:'損益分岐点売上',f:fmt.yen,p:true},{k:'mr',l:'限界利益率',f:fmt.pct}],
+    calc:({fixed,vr})=>({be:fixed/(1-vr),mr:1-vr}) },
+
+  { id:'allowcac', cat:'goal', code:'LTV→許容CAC', name:'Allowable CAC', sub:'LTVから許容CACを逆算',
+    formula:'許容CAC = LTV × 粗利率 ÷ 目標LTV/CAC比',
+    def:'ユニットエコノミクスの上限値設定。LTV/CAC=3を健全ラインとし、粗利率を加味した実質的な広告投下上限を算出。CAC＞許容CACなら投下抑制サイン。',
+    inputs:[{k:'ltv',l:'LTV',u:'円',s:1000,v:120000,min:1},{k:'gm',l:'粗利率',u:'%',s:0.01,v:0.70,pct:true,min:0.01},{k:'ratio',l:'目標LTV/CAC比',u:'x',s:0.1,v:3.0,min:1}],
+    outputs:[{k:'cac',l:'許容CAC',f:fmt.yen,p:true},{k:'payback',l:'想定回収月数（参考）',f:fmt.months}],
+    calc:({ltv,gm,ratio})=>({cac:(ltv*gm)/ratio,payback:((ltv*gm)/ratio)/(ltv*gm/12)}) },
+
+];
+
+const CATEGORIES = [
+  {id:'ads',  ja:'広告指標',   en:'Advertising',   desc:'Paid media KPIs: CPC, CPM, CTR, CVR, CPA, ROAS, Frequency, VTR, CPV, CPL'},
+  {id:'site', ja:'サイト・EC', en:'Site & EC',      desc:'GA4/EC指標: Bounce, Engagement, Pages/Session, 平均滞在時間, Exit, Scroll, AOV, RPV, カゴ落ち, フォーム完了率'},
+  {id:'ltv',  ja:'収益・LTV',  en:'Revenue & LTV',  desc:'ユニットエコノミクス: LTV, ARPU, CAC, LTV/CAC, Payback, MRR/ARR, Churn'},
+  {id:'goal', ja:'目標逆算',   en:'Goal Backcast',  desc:'売上・CV目標から必要な流入・予算を逆算 / 損益分岐点 / 許容CAC / MoM成長率'},
+];
+
+// ---- 状態 ----
+let currentCat = 'ads';
+let currentTheme = 'editorial';
+let viewMode = 'grid';
+
+// ---- テーマ切り替え ----
+document.getElementById('themebar').addEventListener('click', e => {
+  const btn = e.target.closest('.mk-theme-btn');
+  if (!btn) return;
+  currentTheme = btn.dataset.theme;
+  document.body.dataset.theme = currentTheme;
+  document.querySelectorAll('.mk-theme-btn').forEach(b => b.classList.toggle('is-active', b === btn));
+  renderGrid();
+});
+
+// ---- タブ ----
+function renderTabs() {
+  const el = document.getElementById('tabs');
+  el.innerHTML = CATEGORIES.map(c => {
+    const n = CATALOG.filter(x => x.cat === c.id).length;
+    return `<button class="mk-tab${c.id===currentCat?' is-active':''}" data-cat="${c.id}">
+      <span class="mk-tab-ja">${c.ja}<span class="mk-tab-count">${n}</span></span>
+      <span class="mk-tab-en">${c.en}</span>
+    </button>`;
+  }).join('');
+}
+document.getElementById('tabs').addEventListener('click', e => {
+  const btn = e.target.closest('.mk-tab');
+  if (!btn) return;
+  currentCat = btn.dataset.cat;
+  renderTabs();
+  renderCathead();
+  renderGrid();
+});
+
+// ---- カテゴリヘッド ----
+function navigateToCard(id) {
+  const calc = CATALOG.find(c => c.id === id);
+  if (!calc) return;
+  if (calc.cat !== currentCat) {
+    currentCat = calc.cat;
+    renderTabs();
+    renderCathead();
+    renderGrid();
+  }
+  // DOM更新後にスクロール
+  requestAnimationFrame(() => {
+    const el = document.querySelector(`[data-id="${id}"]`);
+    if (!el) return;
+    const header = document.querySelector('.mk-top');
+    const offset = header ? header.getBoundingClientRect().height + 12 : 160;
+    const top = el.getBoundingClientRect().top + window.scrollY - offset;
+    window.scrollTo({ behavior: 'smooth', top });
+  });
+  renderChips();
+}
+
+let chipMode = 'b';
+
+function setChipMode(mode) {
+  chipMode = mode;
+  const bar = document.getElementById('chips-bar');
+  bar.className = 'mk-chips-bar chips-mode-' + mode;
+  document.querySelectorAll('.mk-chip-sw').forEach(b => {
+    b.classList.toggle('is-active', b.textContent.toLowerCase() === mode);
+  });
+  renderChips();
+}
+
+let _chipsExpanded = false;
+let _chipsOpenedAt = 0;
+
+function _chipsEls() {
+  return {
+    btn:   document.querySelector('.mk-menu-btn'),
+    inner: document.querySelector('.mk-chips-inner'),
+    close: document.querySelector('.mk-chips-close'),
+  };
+}
+function showChipsStrip() {
+  const e = _chipsEls();
+  e.btn.style.display   = 'flex';
+  e.inner.style.display = 'none';
+  e.close.style.display = 'none';
+}
+function showChipsOpen() {
+  const e = _chipsEls();
+  e.btn.style.display   = 'none';
+  e.inner.style.display = 'flex';
+  e.close.style.display = 'flex';
+}
+function resetChips() {
+  const e = _chipsEls();
+  e.btn.style.display   = 'none';
+  e.inner.style.display = '';
+  e.close.style.display = 'none';
+}
+function openChips() {
+  _chipsExpanded = !_chipsExpanded;
+  if (_chipsExpanded) { _chipsOpenedAt = Date.now(); showChipsOpen(); }
+  else showChipsStrip();
+}
+
+function renderChips() {
+  const bar = document.getElementById('chips');
+  if (chipMode === 'c') {
+    // モードC: カテゴリラベル + チップ
+    const groups = {};
+    CATALOG.forEach(x => { (groups[x.cat] = groups[x.cat]||[]).push(x); });
+    bar.innerHTML = Object.entries(groups).map(([cat, items]) =>
+      `<span class="mk-chip-label" data-cat="${cat}">${cat}</span>` +
+      items.map(x => `<button class="mk-chip" data-cat="${x.cat}" data-nav="${x.id}" title="${x.name}">${x.code}</button>`).join('')
+    ).join('');
+  } else {
+    bar.innerHTML = CATALOG.map(x =>
+      `<button class="mk-chip" data-cat="${x.cat}" data-nav="${x.id}" title="${x.name}">${x.code}</button>`
+    ).join('');
+  }
+}
+
+function renderCathead() {
+  const c = CATEGORIES.find(x => x.id === currentCat);
+  document.getElementById('cathead').innerHTML = `
+    <div>
+      <div class="mk-cathead-eyebrow">Category · <code>${c.id}</code></div>
+      <h2 class="mk-cathead-title">${c.ja}<span class="mk-cathead-en"> / ${c.en}</span></h2>
+    </div>
+    <div class="mk-view-toggle">
+      <button class="mk-view-btn${viewMode==='grid'?' is-active':''}" data-view="grid">⊞ カード</button>
+      <button class="mk-view-btn${viewMode==='list'?' is-active':''}" data-view="list">≡ リスト</button>
+    </div>`;
+}
+
+// ---- 数値をカンマ区切り文字列に変換 ----
+function numToComma(n, isPct) {
+  if (!isFinite(n)) return String(n);
+  if (isPct) return String(n);
+  return Number.isInteger(n)
+    ? n.toLocaleString('ja-JP')
+    : n.toLocaleString('ja-JP', {maximumFractionDigits: 4});
+}
+
+// ---- 入力行HTML生成 ----
+function inputRowHTML(inp, val) {
+  const isPct = inp.pct;
+  const disp = isPct ? +(val*100).toFixed(4) : val;
+  const step = isPct ? +(inp.s*100).toFixed(4) : inp.s;
+  const min  = inp.min !== undefined ? (isPct ? inp.min*100 : inp.min) : 0;
+  const dispStr = numToComma(disp, isPct);
+  return `<div class="mk-row">
+    <label class="mk-row-label">${inp.l}</label>
+    <div class="mk-row-field">
+      <input type="text" inputmode="${isPct?'decimal':'numeric'}" data-key="${inp.k}" data-pct="${isPct?1:0}" data-step="${step}" data-min="${min}" value="${dispStr}">
+      <span class="mk-row-unit">${inp.u}</span>
+    </div>
+  </div>`;
+}
+
+// ---- ベンチマークバッジ ----
+function benchHTML(b, cls='cardA-bench') {
+  if (!b) return '';
+  return `<span class="${cls} bench-${b.t}">${b.l}</span>`;
+}
+
+// ---- Card A ----
+function cardAHTML(calc) {
+  const state = {};
+  calc.inputs.forEach(i => { state[i.k] = i.v; });
+  const out = calc.calc(state);
+  const rows = calc.inputs.map(i => inputRowHTML(i, state[i.k])).join('');
+  const outs = calc.outputs.map(o => {
+    const bench = o.bench ? o.bench(out[o.k]) : null;
+    return `<div class="cardA-out${o.p?' primary':''}">
+      <div class="cardA-out-label">${o.l}</div>
+      <div class="cardA-out-value" data-out="${o.k}">${o.f(out[o.k])}</div>
+      ${bench ? `<span class="cardA-bench bench-${bench.t}" data-bench="${o.k}">${bench.l}</span>` : ''}
+    </div>`;
+  }).join('');
+  return `<article class="cardA" data-id="${calc.id}">
+    <div class="cardA-head">
+      <div class="cardA-code-wrap">
+        <div class="cardA-code">${calc.code}</div>
+        <div class="cardA-titles"><span class="cardA-name">${calc.name}</span><span class="cardA-sub">${calc.sub}</span></div>
+      </div>
+      <button class="cardA-defbtn"><svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><circle cx="5.5" cy="5.5" r="5" stroke="currentColor" stroke-width="1"/><text x="5.5" y="8.5" text-anchor="middle" font-size="6.5" fill="currentColor" font-family="monospace" font-weight="700">?</text></svg>定義</button>
+    </div>
+    <div class="cardA-def" style="display:none">
+      <div class="cardA-formula"><span class="cardA-formula-tag">式</span>${calc.formula}</div>
+      <div class="cardA-def-text">${calc.def}</div>
+    </div>
+    <div class="cardA-inputs">${rows}</div>
+    <div class="cardA-outputs">${outs}</div>
+  </article>`;
+}
+
+// ---- Card B ----
+function cardBHTML(calc) {
+  const state = {};
+  calc.inputs.forEach(i => { state[i.k] = i.v; });
+  const out = calc.calc(state);
+  const primary = calc.outputs.find(o => o.p) || calc.outputs[0];
+  const secs = calc.outputs.filter(o => !o.p);
+  const bench = primary.bench ? primary.bench(out[primary.k]) : null;
+  const rows = calc.inputs.map(i => inputRowHTML(i, state[i.k])).join('');
+  const secsHTML = secs.length ? `<div class="cardB-secondary">${secs.map(o=>
+    `<div class="cardB-sec"><span>${o.l}</span><b data-out="${o.k}">${o.f(out[o.k])}</b></div>`).join('')}</div>` : '';
+  return `<article class="cardB" data-id="${calc.id}">
+    <div class="cardB-left">
+      <div class="cardB-code-wrap">
+        <div class="cardB-id">${calc.code}</div>
+        <div class="cardB-titles"><span class="cardB-name">${calc.name}</span><span class="cardB-sub">${calc.sub}</span></div>
+      </div>
+      <div class="cardB-hero">
+        <div class="cardB-value" data-out="${primary.k}">${primary.f(out[primary.k])}</div>
+        <div class="cardB-value-label">${primary.l}${bench?`<span class="cardB-bench bench-${bench.t}" data-bench="${primary.k}">${bench.l}</span>`:''}
+        </div>
+      </div>
+      ${secsHTML}
+      <div class="cardB-formula"><em>式 —</em>${calc.formula}</div>
+      <div class="cardB-def">${calc.def}</div>
+    </div>
+    <div class="cardB-right">${rows}</div>
+  </article>`;
+}
+
+// ---- Card C ----
+function cardCHTML(calc) {
+  const state = {};
+  calc.inputs.forEach(i => { state[i.k] = i.v; });
+  const out = calc.calc(state);
+  const rows = calc.inputs.map(i => inputRowHTML(i, state[i.k])).join('');
+  const outs = calc.outputs.map(o => {
+    const bench = o.bench ? o.bench(out[o.k]) : null;
+    return `<div class="cardC-out${o.p?' primary':''}">
+      <div class="cardC-out-row">
+        <span class="cardC-arrow">›</span>
+        <span class="cardC-label">${o.l}</span>
+        <span class="cardC-value" data-out="${o.k}">${o.f(out[o.k])}</span>
+      </div>
+      ${bench ? `<div class="cardC-bench bench-${bench.t}" data-bench="${o.k}">[ ${bench.l} ]</div>` : ''}
+    </div>`;
+  }).join('');
+  return `<article class="cardC" data-id="${calc.id}">
+    <div class="cardC-head">
+      <span class="cardC-dot"></span>
+      <span class="cardC-path">~/metrics/${calc.cat}/${calc.id}</span>
+    </div>
+    <div class="cardC-name">
+      <div class="cardC-code">${calc.code}</div>
+      <div class="cardC-titles"><h3>${calc.name}</h3><p>// ${calc.sub}</p></div>
+    </div>
+    <div class="cardC-body">
+      <div class="cardC-inputs">
+        <div class="cardC-section">─── INPUTS ───</div>
+        ${rows}
+      </div>
+      <div class="cardC-outputs">
+        <div class="cardC-section">─── OUTPUT ───</div>
+        ${outs}
+        <div class="cardC-formula-box">
+          <div class="cardC-section">─── FORMULA ───</div>
+          <code>${calc.formula}</code>
+          <p>${calc.def}</p>
+        </div>
+      </div>
+    </div>
+  </article>`;
+}
+
+// ---- Card L: List View ----
+function cardListHTML(calc) {
+  const state = {};
+  calc.inputs.forEach(i => { state[i.k] = i.v; });
+  const out = calc.calc(state);
+  const primary = calc.outputs.find(o => o.p) || calc.outputs[0];
+  const secs = calc.outputs.filter(o => !o.p);
+  const bench = primary.bench ? primary.bench(out[primary.k]) : null;
+
+  const rows = calc.inputs.map(i => inputRowHTML(i, state[i.k])).join('');
+
+  const benchSpan = primary.bench
+    ? (bench
+        ? `<span class="cardL-bench bench-${bench.t}" data-bench="${primary.k}">${bench.l}</span>`
+        : `<span class="cardL-bench" data-bench="${primary.k}" style="display:none"></span>`)
+    : '';
+
+  const secsHTML = secs.length
+    ? `<div class="cardL-secs">${secs.map(o =>
+        `<span><em>${o.l}</em><b data-out="${o.k}">${o.f(out[o.k])}</b></span>`
+      ).join('')}</div>`
+    : '';
+
+  return `<div class="cardL-wrap" data-id="${calc.id}">
+    <div class="cardL">
+      <div class="cardL-head">
+        <span class="cardL-code">${calc.code}</span>
+        <div class="cardL-titles">
+          <h3>${calc.name}</h3>
+          <p>${calc.sub}</p>
+        </div>
+      </div>
+      <div class="cardL-inputs">${rows}</div>
+      <div class="cardL-arrow">→</div>
+      <div class="cardL-result">
+        <div class="cardL-out-label">${primary.l}</div>
+        <div class="cardL-value" data-out="${primary.k}">${primary.f(out[primary.k])}</div>
+        ${benchSpan}
+        ${secsHTML}
+      </div>
+      <button class="cardL-defbtn">+ 定義</button>
+    </div>
+    <div class="cardL-def">
+      <div class="cardL-def-formula"><span>式</span>${calc.formula}</div>
+      <p>${calc.def}</p>
+    </div>
+  </div>`;
+}
+
+// ---- グリッド描画 ----
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  const items = CATALOG.filter(x => x.cat === currentCat);
+  if (viewMode === 'list') {
+    grid.className = 'mk-grid view-list';
+    grid.innerHTML = items.map(cardListHTML).join('');
+  } else {
+    grid.className = 'mk-grid theme-' + currentTheme;
+    const cardFn = currentTheme === 'editorial' ? cardBHTML : (currentTheme === 'terminal' || currentTheme === 'pattern-d') ? cardCHTML : cardAHTML;
+    grid.innerHTML = items.map(cardFn).join('');
+  }
+  bindInputs();
+}
+
+// ---- 定義トグル ----
+function toggleDef(btn) {
+  const def = btn.closest('.cardA').querySelector('.cardA-def');
+  const open = def.style.display === 'none' || def.style.display === '';
+  def.style.display = open ? 'block' : 'none';
+  btn.textContent = open ? '閉じる' : '定義';
+}
+function toggleListDef(btn) {
+  const wrap = btn.closest('[data-id]');
+  const def = wrap.querySelector('.cardL-def');
+  const open = def.style.display !== 'block';
+  def.style.display = open ? 'block' : 'none';
+  wrap.classList.toggle('is-open', open);
+  btn.textContent = open ? '− 定義' : '+ 定義';
+}
+
+// ---- 入力バインド ----
+function bindInputs() {
+  document.getElementById('grid').querySelectorAll('input[data-key]').forEach(input => {
+    // フォーカス時: カンマを除去して編集しやすくする
+    input.addEventListener('focus', () => {
+      if (input.dataset.pct !== '1') {
+        input.value = input.value.replace(/,/g, '');
+      }
+    });
+    // ブラー時: カンマを再付与
+    input.addEventListener('blur', () => {
+      if (input.dataset.pct !== '1') {
+        const n = parseFloat(input.value.replace(/,/g, ''));
+        if (isFinite(n)) input.value = numToComma(n, false);
+      }
+    });
+
+    input.addEventListener('input', () => {
+      const card = input.closest('[data-id]');
+      const calcId = card.dataset.id;
+      const calc = CATALOG.find(c => c.id === calcId);
+      if (!calc) return;
+
+      // 現在の入力値を収集（カンマを除去してパース）
+      const state = {};
+      card.querySelectorAll('input[data-key]').forEach(inp => {
+        const isPct = inp.dataset.pct === '1';
+        const v = parseFloat(inp.value.replace(/,/g, ''));
+        state[inp.dataset.key] = isPct ? v / 100 : v;
+      });
+
+      // 計算
+      const out = calc.calc(state);
+
+      // 出力値を更新
+      calc.outputs.forEach(o => {
+        const el = card.querySelector(`[data-out="${o.k}"]`);
+        if (el) el.textContent = o.f(out[o.k]);
+        if (o.bench) {
+          const bel = card.querySelector(`[data-bench="${o.k}"]`);
+          if (bel) {
+            const b = o.bench(out[o.k]);
+            if (b) {
+              bel.className = bel.className.replace(/bench-\w+/, '') + ' bench-' + b.t;
+              bel.textContent = (currentTheme === 'terminal' || currentTheme === 'pattern-d') ? '[ ' + b.l + ' ]' : b.l;
+              bel.style.display = '';
+            } else {
+              bel.className = bel.className.replace(/bench-\w+/, '');
+              bel.textContent = '';
+              bel.style.display = 'none';
+            }
+          }
+        }
+      });
+    });
+  });
+}
+
+// ---- スクロールでヘッダーを折りたたみ（モバイルのみ） ----
+// 上下に閾値の差を設けてループを防止
+(function(){
+  const header = document.querySelector('header');
+  let lastY = 0;
+  window.addEventListener('scroll', () => {
+    if (window.innerWidth > 768) return;
+    const y = window.scrollY;
+    if (y > 120) {
+      if (!header.classList.contains('is-compact')) {
+        header.classList.add('is-compact');
+        showChipsStrip();
+      } else if (y > lastY && _chipsExpanded && Date.now() - _chipsOpenedAt > 300) {
+        _chipsExpanded = false;
+        showChipsStrip();
+      }
+    } else if (y < 60) {
+      header.classList.remove('is-compact');
+      _chipsExpanded = false;
+      resetChips();
+    }
+    lastY = y;
+  }, { passive: true });
+})();
+
+// ---- イベント委譲（onclick排除） ----
+document.querySelector('.mk-menu-btn').addEventListener('click', openChips);
+document.querySelector('.mk-chips-close').addEventListener('click', openChips);
+document.getElementById('chips-bar').addEventListener('click', e => {
+  const sw = e.target.closest('.mk-chip-sw');
+  if (sw) { setChipMode(sw.dataset.mode); return; }
+  const chip = e.target.closest('.mk-chip');
+  if (chip) navigateToCard(chip.dataset.nav);
+});
+document.getElementById('cathead').addEventListener('click', e => {
+  const btn = e.target.closest('.mk-view-btn');
+  if (!btn) return;
+  viewMode = btn.dataset.view;
+  renderCathead();
+  renderGrid();
+});
+document.getElementById('grid').addEventListener('click', e => {
+  const btnA = e.target.closest('.cardA-defbtn');
+  if (btnA) { toggleDef(btnA); return; }
+  const btnL = e.target.closest('.cardL-defbtn');
+  if (btnL) toggleListDef(btnL);
+});
+
+// ---- 初期描画 ----
+renderTabs();
+renderCathead();
+renderGrid();
+renderChips();
+</script>
+</body>
+</html>
