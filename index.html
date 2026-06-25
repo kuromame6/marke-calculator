@@ -79,6 +79,7 @@ body[data-theme="editorial"] .mk-top{background:rgba(246,242,234,.92)}
 
 /* ---- Main ---- */
 .mk-main{max-width:1440px;margin:0 auto;padding:28px 28px 64px;width:100%}
+body.is-listview .mk-main{max-width:1020px}
 .mk-cathead{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding-bottom:20px;margin-bottom:22px;border-bottom:1px solid var(--line)}
 .mk-cathead-eyebrow{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
 .mk-cathead-eyebrow code{background:var(--accent-soft);color:var(--accent-ink);padding:2px 6px;border-radius:4px}
@@ -953,6 +954,7 @@ function cardListHTML(calc) {
 function renderGrid() {
   const grid = document.getElementById('grid');
   const items = CATALOG.filter(x => x.cat === currentCat);
+  document.body.classList.toggle('is-listview', viewMode === 'list');
   if (viewMode === 'list') {
     grid.className = 'mk-grid view-list';
     grid.innerHTML = items.map(cardListHTML).join('');
