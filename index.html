@@ -293,6 +293,16 @@ body[data-theme="pattern-d"] .cardC-dot{box-shadow:none}
 .cardL-def-formula{font-family:var(--mono);font-size:13px;color:var(--ink-2);margin-bottom:10px;display:flex;align-items:baseline;gap:10px}
 .cardL-def-formula span{font:600 10px/1 var(--mono);color:var(--accent-ink);border:1px solid currentColor;padding:3px 7px;letter-spacing:.1em;text-transform:uppercase}
 .cardL-def p{margin:0;font-size:13px;color:var(--muted);line-height:1.7;max-width:860px}
+.cardL-wrap.is-open .cardL-def-pc,.cardL-wrap.is-open .cardL-def-mobile{display:block}
+@media(min-width:1101px){
+  .cardL-def-mobile{display:none !important}
+  .cardL-def-pc{grid-column:1;grid-row:2;padding:12px 0 0;background:transparent;border-top:1px dashed var(--line-2);margin-top:10px;align-self:start}
+  .cardL-def-pc .cardL-def-formula{font-size:12px;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .cardL-def-pc p{font-size:12px;line-height:1.6;max-width:none}
+}
+@media(max-width:1100px){
+  .cardL-def-pc{display:none !important}
+}
 @media(max-width:1100px){
   .cardL{grid-template-columns:1fr;gap:14px;padding:20px}
   .cardL-arrow{display:none}
@@ -939,6 +949,10 @@ function cardListHTML(calc) {
           <p>${calc.sub}</p>
         </div>
       </div>
+      <div class="cardL-def cardL-def-pc">
+        <div class="cardL-def-formula"><span>式</span>${calc.formula}</div>
+        <p>${calc.def}</p>
+      </div>
       <div class="cardL-inputs">${rows}</div>
       <div class="cardL-arrow">→</div>
       <div class="cardL-result">
@@ -949,7 +963,7 @@ function cardListHTML(calc) {
       </div>
       <button class="cardL-defbtn">+ 定義</button>
     </div>
-    <div class="cardL-def">
+    <div class="cardL-def cardL-def-mobile">
       <div class="cardL-def-formula"><span>式</span>${calc.formula}</div>
       <p>${calc.def}</p>
     </div>
@@ -981,9 +995,7 @@ function toggleDef(btn) {
 }
 function toggleListDef(btn) {
   const wrap = btn.closest('[data-id]');
-  const def = wrap.querySelector('.cardL-def');
-  const open = def.style.display !== 'block';
-  def.style.display = open ? 'block' : 'none';
+  const open = !wrap.classList.contains('is-open');
   wrap.classList.toggle('is-open', open);
   btn.textContent = open ? '− 定義' : '+ 定義';
 }
